@@ -1,0 +1,109 @@
+@page "/apiweather"
+@rendermode InteractiveServer
+@using ifosup.Models
+@inject ifosup.Services.OpenMeteoClient Api
+
+<h1>Brussels Weather</h1>
+
+@if (_isLoading)
+{
+    <p>Loading…</p>
+}
+else if (_error is not null)
+{
+    <p style="color:crimson">Error: @_error</p>
+}
+else if (_data is null)
+{
+    <p>No data.</p>
+}
+else
+{
+    <section style="margin-bottom: 1rem;">
+        <h2>Current</h2>
+        <ul>
+            <li>Timezone: @_data.Timezone</li>
+            <li>Time: @_data.Current?.Time</li>
+            <li>Temperature: @FormatTemp(_data.Current?.Temperature2m)</li>
+            <li>Wind: @FormatWind(_data.Current?.WindSpeed10m)</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Next hours (temperature)</h2>
+
+        @if (_hourRows.Count == 0)
+        {
+            <p>No hourly forecast available.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Temp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _hourRows)
+                    {
+                        <tr>
+                            <td>@row.Time</td>
+                            <td>@row.TempC</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+}
+
+@code {
+    private OpenMeteoForecastResponse? _data;
+    private bool _isLoading = true;
+    private string? _error;
+
+    private readonly List<HourRow> _hourRows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _error = null;
+
+            _data = await Api.GetBrusselsForecastAsync();
+
+            BuildHourRows(_data);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void BuildHourRows(OpenMeteoForecastResponse data)
+    {
+        _hourRows.Clear();
+
+        var times = data.Hourly?.Time ?? new();
+        var temps = data.Hourly?.Temperature2m ?? new();
+
+        var count = Math.Min(times.Count, temps.Count);
+
+        for (var i = 0; i < count && i < 24; i++)
+        {
+            _hourRows.Add(new HourRow(times[i], $"{temps[i]:0.#} °C"));
+        }
+    }
+
+    private static string FormatTemp(double? t) => t is null ? "n/a" : $"{t:0.#} °C";
+    private static string FormatWind(double? w) => w is null ? "n/a" : $"{w:0.#} km/h";
+
+    private sealed record HourRow(string Time, string TempC);
+}
