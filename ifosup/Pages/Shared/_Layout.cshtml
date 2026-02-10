@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ifosup</title>
+    <link rel="stylesheet" href="~/css/app.css" />
+</head>
+<body>
+    <header style="padding: 1rem; border-bottom: 1px solid #ddd;">
+        <a href="/" style="margin-right: 1rem;">Home</a>
+        <partial name="_LoginPartial" />
+    </header>
+
+    <main style="padding: 1rem;">
+        @RenderBody()
+    </main>
+</body>
+</html>

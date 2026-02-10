@@ -1,5 +1,10 @@
 using ifosup.Components;
 using ifosup.Services;
+using ifosup.Data;
+using ifosup.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +17,19 @@ builder.Services.AddHttpClient<OpenMeteoClient>(client =>
     client.BaseAddress = new Uri("https://api.open-meteo.com/");
     client.Timeout = TimeSpan.FromSeconds(10);
 });
+// EF Core (SQLite)
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Identity
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>();
+
+// Razor Pages (Identity UI je Razor Pages)
+builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
@@ -29,6 +47,10 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapRazorPages();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

@@ -1,0 +1,16 @@
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ifosup.Models.ApplicationUser> SignInManager
+@inject UserManager<ifosup.Models.ApplicationUser> UserManager
+
+@if (SignInManager.IsSignedIn(User))
+{
+    <span style="margin-right: .75rem;">@User.Identity?.Name</span>
+    <form method="post" action="/Identity/Account/Logout" style="display:inline;">
+        <button type="submit">Logout</button>
+    </form>
+}
+else
+{
+    <a href="/Identity/Account/Register" style="margin-right: .75rem;">Register</a>
+    <a href="/Identity/Account/Login">Login</a>
+}
