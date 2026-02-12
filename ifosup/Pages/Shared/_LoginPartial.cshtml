@@ -5,9 +5,10 @@
 @if (SignInManager.IsSignedIn(User))
 {
     <span style="margin-right: .75rem;">@User.Identity?.Name</span>
-    <form method="post" action="/Identity/Account/Logout" style="display:inline;">
+    <form asp-area="Identity" asp-page="/Account/Logout" method="post" style="display:inline;">
         <button type="submit">Logout</button>
     </form>
+
 }
 else
 {
