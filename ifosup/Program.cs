@@ -31,6 +31,9 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 // Razor Pages (Identity UI je Razor Pages)
 builder.Services.AddRazorPages();
 
+builder.Services.AddCascadingAuthenticationState();
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
