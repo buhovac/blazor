@@ -1,18 +1,98 @@
 @page "/favorites"
+@rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
-
 @inject AuthenticationStateProvider AuthStateProvider
-
+@inject ifosup.Services.FavoritesService FavoritesService
 
 <h1>Favorites</h1>
-<p>This page is protected.</p>
-@inject AuthenticationStateProvider AuthStateProvider
+
+@if (_userId is null)
+{
+    <p>Loading user…</p>
+}
+else
+{
+    <section style="margin-bottom:1rem;">
+        <h2>Add a manual favorite (test)</h2>
+
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+            <input placeholder="ExternalId" @bind="_newExternalId" />
+            <input placeholder="Custom title" @bind="_newTitle" />
+            <input placeholder="Note" @bind="_newNote" />
+            <button @onclick="AddManualAsync">Add</button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <p>@_message</p>
+        }
+    </section>
+
+    <section>
+        <h2>My favorites</h2>
+
+        @if (_favorites.Count == 0)
+        {
+            <p>No favorites yet.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>ExternalId</th>
+                        <th>CustomTitle</th>
+                        <th>Note</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in _favorites)
+                    {
+                        <tr>
+                            <td>@f.ExternalId</td>
+
+                            <td>
+                                <input @bind="_edit[f.Id].CustomTitle" />
+                            </td>
+
+                            <td>
+                                <input @bind="_edit[f.Id].Note" />
+                            </td>
+
+                            <td>
+                                <button @onclick="() => SaveAsync(f.Id)">Save</button>
+                                <button @onclick="() => DeleteAsync(f.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+}
 
 @code {
     private string? _userId;
+
+    private List<ifosup.Models.FavoriteItem> _favorites = new();
+
+    private string _newExternalId = "";
+    private string _newTitle = "";
+    private string _newNote = "";
+    private string? _message;
+
+    // Edit buffers per row (stable with re-render)
+    private readonly Dictionary<int, FavoriteEdit> _edit = new();
+
+    private sealed class FavoriteEdit
+    {
+        public string? CustomTitle { get; set; }
+        public string? Note { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -20,5 +100,78 @@
         var user = authState.User;
 
         _userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (_userId is not null)
+            await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _favorites = await FavoritesService.GetForUserAsync(_userId!);
+
+        _edit.Clear();
+        foreach (var f in _favorites)
+        {
+            _edit[f.Id] = new FavoriteEdit
+            {
+                CustomTitle = f.CustomTitle,
+                Note = f.Note
+            };
+        }
+    }
+
+    private async Task AddManualAsync()
+    {
+        _message = null;
+
+        if (string.IsNullOrWhiteSpace(_newExternalId))
+        {
+            _message = "ExternalId is required.";
+            return;
+        }
+
+        var ok = await FavoritesService.AddAsync(
+            userId: _userId!,
+            externalId: _newExternalId.Trim(),
+            customTitle: string.IsNullOrWhiteSpace(_newTitle) ? null : _newTitle.Trim(),
+            note: string.IsNullOrWhiteSpace(_newNote) ? null : _newNote.Trim()
+        );
+
+        _message = ok ? "Added." : "Already exists.";
+
+        if (ok)
+        {
+            _newExternalId = "";
+            _newTitle = "";
+            _newNote = "";
+        }
+
+        await ReloadAsync();
+    }
+
+    private async Task SaveAsync(int favoriteId)
+    {
+        if (!_edit.TryGetValue(favoriteId, out var edit))
+        {
+            _message = "Edit buffer not found.";
+            return;
+        }
+
+        var ok = await FavoritesService.UpdateAsync(
+            userId: _userId!,
+            favoriteId: favoriteId,
+            customTitle: edit.CustomTitle,
+            note: edit.Note
+        );
+
+        _message = ok ? "Saved." : "Not found / not owner.";
+        await ReloadAsync();
+    }
+
+    private async Task DeleteAsync(int favoriteId)
+    {
+        var ok = await FavoritesService.RemoveAsync(_userId!, favoriteId);
+        _message = ok ? "Deleted." : "Not found / not owner.";
+        await ReloadAsync();
     }
 }

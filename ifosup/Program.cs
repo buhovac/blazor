@@ -32,7 +32,7 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 builder.Services.AddRazorPages();
 
 builder.Services.AddCascadingAuthenticationState();
-
+builder.Services.AddScoped<ifosup.Services.FavoritesService>();
 
 var app = builder.Build();
 

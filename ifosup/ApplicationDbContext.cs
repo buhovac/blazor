@@ -10,4 +10,9 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         : base(options)
     {
     }
+    public DbSet<FavoriteItem> FavoriteItems => Set<FavoriteItem>();
 }
+
+
+
+    
