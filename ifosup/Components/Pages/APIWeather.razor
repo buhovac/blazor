@@ -1,6 +1,11 @@
 @page "/apiweather"
 @rendermode InteractiveServer
 @using ifosup.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ifosup.Services.FavoritesService FavoritesService
+
 @inject ifosup.Services.OpenMeteoClient Api
 
 <h1>Brussels Weather</h1>
@@ -43,18 +48,34 @@ else
                     <tr>
                         <th>Time</th>
                         <th>Temp</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var row in _hourRows)
-                    {
-                        <tr>
-                            <td>@row.Time</td>
-                            <td>@row.TempC</td>
-                        </tr>
-                    }
+                @foreach (var row in _hourRows)
+                {
+                    <tr>
+                        <td>@row.Time</td>
+                        <td>@row.TempC</td>
+                        <td>
+                            @if (_isAuthenticated)
+                            {
+                                <button @onclick="() => AddHourToFavoritesAsync(row)">Add to favorites</button>
+                            }
+                            else
+                            {
+                                <a href="/Identity/Account/Login">Login</a>
+                            }
+                        </td>
+                    </tr>
+                }
                 </tbody>
+
             </table>
+            @if (!string.IsNullOrWhiteSpace(_favMessage))
+            {
+                <p>@_favMessage</p>
+            }
         }
     </section>
 }
@@ -63,6 +84,9 @@ else
     private OpenMeteoForecastResponse? _data;
     private bool _isLoading = true;
     private string? _error;
+    private string? _userId;
+    private bool _isAuthenticated;
+    private string? _favMessage;
 
     private readonly List<HourRow> _hourRows = new();
 
@@ -85,6 +109,11 @@ else
         {
             _isLoading = false;
         }
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        _isAuthenticated = user.Identity?.IsAuthenticated == true;
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 
     private void BuildHourRows(OpenMeteoForecastResponse data)
@@ -101,6 +130,40 @@ else
             _hourRows.Add(new HourRow(times[i], $"{temps[i]:0.#} °C"));
         }
     }
+
+    private async Task AddHourToFavoritesAsync(HourRow row)
+{
+    _favMessage = null;
+
+    if (!_isAuthenticated || string.IsNullOrWhiteSpace(_userId))
+    {
+        _favMessage = "Not authenticated.";
+        return;
+    }
+
+    var externalId = $"openmeteo:brussels:hourly:{row.Time}";
+
+    // Snapshot objekt za demo (što si spremio iz API-ja)
+    var snapshot = new
+    {
+        Source = "OpenMeteo",
+        City = "Brussels",
+        Type = "HourlyTemperature",
+        Time = row.Time,
+        Temp = row.TempC
+    };
+
+    var ok = await FavoritesService.AddAsync(
+        userId: _userId,
+        externalId: externalId,
+        customTitle: $"Brussels {row.Time}",
+        note: row.TempC,
+        snapshotObject: snapshot
+    );
+
+    _favMessage = ok ? "Added to favorites." : "Already in favorites.";
+}
+
 
     private static string FormatTemp(double? t) => t is null ? "n/a" : $"{t:0.#} °C";
     private static string FormatWind(double? w) => w is null ? "n/a" : $"{w:0.#} km/h";
