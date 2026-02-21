@@ -1,0 +1,31 @@
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ifosup</title>
+    <link rel="stylesheet" href="/app.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="container app-shell">
+        <header class="card app-header">
+            <div class="app-brand">
+                <div class="app-title">ifosup</div>
+                <div class="muted app-subtitle">API + Auth + Favorites</div>
+            </div>
+
+            <div class="muted badge">Identity</div>
+        </header>
+
+        <main class="card app-content">
+            @RenderBody()
+        </main>
+    </div>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

@@ -15,22 +15,6 @@
 }
 else
 {
-    <section style="margin-bottom:1rem;">
-        <h2>Add a manual favorite (test)</h2>
-
-        <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
-            <input placeholder="ExternalId" @bind="_newExternalId" />
-            <input placeholder="Custom title" @bind="_newTitle" />
-            <input placeholder="Note" @bind="_newNote" />
-            <button @onclick="AddManualAsync">Add</button>
-        </div>
-
-        @if (!string.IsNullOrWhiteSpace(_message))
-        {
-            <p>@_message</p>
-        }
-    </section>
-
     <section>
         <h2>My favorites</h2>
 
@@ -40,37 +24,57 @@ else
         }
         else
         {
-            <table>
+            <table class="table">
                 <thead>
                     <tr>
-                        <th>ExternalId</th>
-                        <th>CustomTitle</th>
-                        <th>Note</th>
+                        <th>Favorite</th>
+                        <th>Temperature</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var f in _favorites)
                     {
+                        var friendly = GetFriendlyLabel(f);
+
                         <tr>
-                            <td>@f.ExternalId</td>
+                            <td style="min-width:260px;">
+                                <input class="input"
+                                       @bind="_edit[f.Id]"
+                                       placeholder="@friendly" />
 
-                            <td>
-                                <input @bind="_edit[f.Id].CustomTitle" />
+                                <div class="muted"
+                                     style="font-size:12px; margin-top:6px;">
+                                    @friendly
+                                </div>
                             </td>
 
-                            <td>
-                                <input @bind="_edit[f.Id].Note" />
+                            <td style="white-space:nowrap;">
+                                <span class="badge">
+                                    @(string.IsNullOrWhiteSpace(f.Note) ? "n/a" : f.Note)
+                                </span>
                             </td>
 
-                            <td>
-                                <button @onclick="() => SaveAsync(f.Id)">Save</button>
-                                <button @onclick="() => DeleteAsync(f.Id)">Delete</button>
+                            <td style="white-space:nowrap;">
+                                <button class="btn"
+                                        @onclick="() => SaveAsync(f.Id)">
+                                    Save
+                                </button>
+
+                                <button class="btn btn-danger"
+                                        @onclick="() => DeleteAsync(f.Id)">
+                                    Delete
+                                </button>
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <p>@_message</p>
         }
     </section>
 }
@@ -80,19 +84,10 @@ else
 
     private List<ifosup.Models.FavoriteItem> _favorites = new();
 
-    private string _newExternalId = "";
-    private string _newTitle = "";
-    private string _newNote = "";
+    // Sada edit buffer sadrži samo CustomTitle
+    private readonly Dictionary<int, string?> _edit = new();
+
     private string? _message;
-
-    // Edit buffers per row (stable with re-render)
-    private readonly Dictionary<int, FavoriteEdit> _edit = new();
-
-    private sealed class FavoriteEdit
-    {
-        public string? CustomTitle { get; set; }
-        public string? Note { get; set; }
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -112,56 +107,30 @@ else
         _edit.Clear();
         foreach (var f in _favorites)
         {
-            _edit[f.Id] = new FavoriteEdit
-            {
-                CustomTitle = f.CustomTitle,
-                Note = f.Note
-            };
+            _edit[f.Id] = f.CustomTitle;
         }
-    }
-
-    private async Task AddManualAsync()
-    {
-        _message = null;
-
-        if (string.IsNullOrWhiteSpace(_newExternalId))
-        {
-            _message = "ExternalId is required.";
-            return;
-        }
-
-        var ok = await FavoritesService.AddAsync(
-            userId: _userId!,
-            externalId: _newExternalId.Trim(),
-            customTitle: string.IsNullOrWhiteSpace(_newTitle) ? null : _newTitle.Trim(),
-            note: string.IsNullOrWhiteSpace(_newNote) ? null : _newNote.Trim()
-        );
-
-        _message = ok ? "Added." : "Already exists.";
-
-        if (ok)
-        {
-            _newExternalId = "";
-            _newTitle = "";
-            _newNote = "";
-        }
-
-        await ReloadAsync();
     }
 
     private async Task SaveAsync(int favoriteId)
     {
-        if (!_edit.TryGetValue(favoriteId, out var edit))
+        if (!_edit.TryGetValue(favoriteId, out var title))
         {
             _message = "Edit buffer not found.";
+            return;
+        }
+
+        var existing = _favorites.FirstOrDefault(x => x.Id == favoriteId);
+        if (existing is null)
+        {
+            _message = "Not found.";
             return;
         }
 
         var ok = await FavoritesService.UpdateAsync(
             userId: _userId!,
             favoriteId: favoriteId,
-            customTitle: edit.CustomTitle,
-            note: edit.Note
+            customTitle: title,
+            note: existing.Note // NOTE ostaje nepromijenjen
         );
 
         _message = ok ? "Saved." : "Not found / not owner.";
@@ -173,5 +142,50 @@ else
         var ok = await FavoritesService.RemoveAsync(_userId!, favoriteId);
         _message = ok ? "Deleted." : "Not found / not owner.";
         await ReloadAsync();
+    }
+
+    private static string GetFriendlyLabel(ifosup.Models.FavoriteItem f)
+    {
+        // 1️⃣ SnapshotJson je najtočniji izvor
+        if (!string.IsNullOrWhiteSpace(f.SnapshotJson))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(f.SnapshotJson);
+                var root = doc.RootElement;
+
+                var city = root.TryGetProperty("City", out var cityEl)
+                    ? cityEl.GetString()
+                    : "Brussels";
+
+                var time = root.TryGetProperty("Time", out var timeEl)
+                    ? timeEl.GetString()
+                    : null;
+
+                if (!string.IsNullOrWhiteSpace(time) &&
+                    DateTime.TryParse(time, out var dt))
+                {
+                    return $"{city} {dt:dd/MM HH:mm}";
+                }
+
+                return city ?? "Favorite";
+            }
+            catch
+            {
+                // ignore parsing errors
+            }
+        }
+
+        // 2️⃣ Fallback: parsiraj iz ExternalId
+        var idx = f.ExternalId.LastIndexOf(':');
+        if (idx >= 0 && idx + 1 < f.ExternalId.Length)
+        {
+            var maybeTime = f.ExternalId[(idx + 1)..];
+
+            if (DateTime.TryParse(maybeTime, out var dt))
+                return $"Brussels {dt:dd/MM HH:mm}";
+        }
+
+        return "Favorite";
     }
 }

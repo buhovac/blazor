@@ -12,7 +12,3 @@ public sealed class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     }
     public DbSet<FavoriteItem> FavoriteItems => Set<FavoriteItem>();
 }
-
-
-
-    

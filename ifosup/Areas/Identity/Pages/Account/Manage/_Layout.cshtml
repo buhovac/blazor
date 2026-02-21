@@ -1,0 +1,29 @@
+@{
+    Layout = "/Areas/Identity/Pages/_Layout.cshtml";
+}
+
+<div class="vstack">
+    <div class="hstack" style="justify-content:space-between; flex-wrap:wrap;">
+        <div>
+            <div style="font-weight:700;">Account</div>
+            <div class="muted" style="font-size:12px;">Manage your settings</div>
+        </div>
+        <a class="btn" href="/">Back to app</a>
+    </div>
+
+    <div style="height:6px;"></div>
+
+    <div class="hstack" style="align-items:flex-start; flex-wrap:wrap;">
+        <div style="min-width:220px;">
+            @RenderSection("Sidebar", required: false)
+        </div>
+
+        <div style="flex:1; min-width:260px;">
+            @RenderBody()
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @RenderSection("Scripts", required: false)
+}
