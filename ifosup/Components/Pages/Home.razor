@@ -1,7 +1,60 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+@using Microsoft.AspNetCore.Components.Authorization
 
-<h1>Hello, world!</h1>
+<div class="vstack">
+    <div class="muted">Blazor Web App • IFOSUP</div>
 
-Welcome to your new app.
+    <div class="vstack" style="gap:10px;">
+        <div style="font-size:20px; font-weight:700; line-height:1.2;">
+            App displays weather data from an API and lets authenticated users manage local favorites.
+        </div>
+
+        <div class="muted">
+            Flow: API → UI → Add to favorites → Favorites CRUD (edit title, delete).
+        </div>
+    </div>
+
+    <div class="hstack" style="flex-wrap:wrap;">
+        <a class="btn btn-primary" href="/apiweather">Open API Weather</a>
+        <a class="btn" href="/favorites">Open Favorites</a>
+    </div>
+
+    <AuthorizeView>
+        <Authorized>
+            <div class="card">
+                <div style="font-weight:700;">Status</div>
+                <div class="muted">Authenticated</div>
+                <div style="height:10px;"></div>
+                <div class="hstack" style="flex-wrap:wrap;">
+                    <a class="btn" href="/Identity/Account/Manage">Account</a>
+                    <a class="btn btn-danger" href="/Identity/Account/Logout">Logout</a>
+                </div>
+            </div>
+        </Authorized>
+
+        <NotAuthorized>
+            <div class="card">
+                <div style="font-weight:700;">Status</div>
+                <div class="muted">Not authenticated</div>
+                <div style="height:10px;"></div>
+                <div class="hstack" style="flex-wrap:wrap;">
+                    <a class="btn btn-primary" href="/Identity/Account/Login">Login</a>
+                    <a class="btn" href="/Identity/Account/Register">Register</a>
+                </div>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+
+    <div class="card">
+        <div style="font-weight:700;">Features</div>
+        <ul class="muted" style="margin:10px 0 0; padding-left:18px;">
+            <li>Weather forecast fetched from Open-Meteo API.</li>
+            <li>ASP.NET Core Identity authentication (Register/Login/Logout).</li>
+            <li>Favorites persisted locally (SQLite via EF Core).</li>
+            <li>CRUD: list, edit title, delete.</li>
+            <li>Unit tests for FavoritesService (xUnit).</li>
+        </ul>
+    </div>
+</div>

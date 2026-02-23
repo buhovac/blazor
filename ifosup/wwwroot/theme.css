@@ -287,3 +287,12 @@ nav a.active {
   margin: 0;
   padding-left: 18px;
 }
+
+.app-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.app-title-link:hover {
+  opacity: 0.85;
+}
